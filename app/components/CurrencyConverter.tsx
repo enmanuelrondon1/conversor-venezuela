@@ -7,7 +7,7 @@ import RateSelector from "./converter/RateSelector";
 import ConverterCard from "./converter/ConverterCard";
 import ComparisonTable from "./converter/ComparisonTable";
 import QuickConversionTable from "./converter/QuickConversionTable";
-import NotificationModal from "./NotificationModal";
+// import NotificationModal from "./NotificationModal";
 import TelegramModal from "./TelegramModal"; // ← AGREGAR ESTO
 
 const CurrencyConverter = () => {
@@ -122,11 +122,11 @@ const CurrencyConverter = () => {
       </div>
 
       {/* Modal de WhatsApp */}
-      <NotificationModal
+      {/* <NotificationModal
         isOpen={isNotificationModalOpen}
         onClose={() => setIsNotificationModalOpen(false)}
         darkMode={darkMode}
-      />
+      /> */}
 
       {/* Modal de Telegram - ← AGREGAR ESTO */}
       <TelegramModal
