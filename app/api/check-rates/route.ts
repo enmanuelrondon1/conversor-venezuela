@@ -1,6 +1,10 @@
 // app/api/check-rates/route.ts
 import { NextResponse } from 'next/server';
 
+// Forzar Node.js runtime (importante para fetch externo)
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
 // Store para mantener el estado entre ejecuciones
 let lastRates = {
   paralelo: null as number | null,
@@ -46,7 +50,7 @@ export async function GET(request: Request) {
 
     console.log(`📊 Tasas actuales - Paralelo: ${currentParalelo}, Oficial: ${currentOficial}`);
 
-    // 2. Si es la primera vez, solo guardar
+    // 3. Si es la primera vez, solo guardar
     if (lastRates.paralelo === null) {
       lastRates = {
         paralelo: currentParalelo,
@@ -66,14 +70,14 @@ export async function GET(request: Request) {
       });
     }
 
-    // 3. Calcular cambio porcentual
+    // 4. Calcular cambio porcentual
     const percentageChange = Math.abs(
       ((currentParalelo - lastRates.paralelo) / lastRates.paralelo) * 100
     );
 
     console.log(`📈 Cambio detectado: ${percentageChange.toFixed(2)}%`);
 
-    // 4. Si el cambio es significativo, notificar
+    // 5. Si el cambio es significativo, notificar
     const threshold = 0.1; // 0.1% para testing (luego cambiar a 1%)
     
     if (percentageChange >= threshold) {
@@ -85,9 +89,9 @@ export async function GET(request: Request) {
       if (chatId) {
         try {
           // Construir URL base
-          const baseUrl = request.headers.get('host');
-          const protocol = request.headers.get('x-forwarded-proto') || 'http';
-          const apiUrl = `${protocol}://${baseUrl}/api/send-telegram`;
+          const url = new URL(request.url);
+          const baseUrl = `${url.protocol}//${url.host}`;
+          const apiUrl = `${baseUrl}/api/send-telegram`;
 
           console.log(`📤 Enviando notificación a: ${apiUrl}`);
 
