@@ -1,7 +1,7 @@
 // app/api/check-rates/route.ts
 import { NextResponse } from 'next/server';
 
-// Forzar Node.js runtime (importante para fetch externo)
+// Forzar Node.js runtime
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
@@ -16,41 +16,41 @@ export async function GET(request: Request) {
   try {
     console.log('🔍 Verificando cambios en tasas...');
 
-    // 1. Obtener tasa paralelo (P2P/Criptomonedas)
-    const paraleloRes = await fetch('https://pydolarve.org/api/v1/dollar?page=enparalelovzla', {
+    // Usar API alternativa que funciona mejor con Vercel
+    const response = await fetch('https://ve.dolarapi.com/v1/dolares', {
       cache: 'no-store',
       headers: {
+        'Accept': 'application/json',
         'User-Agent': 'Mozilla/5.0'
       }
     });
 
-    if (!paraleloRes.ok) {
-      throw new Error(`Error fetching paralelo: ${paraleloRes.status}`);
+    if (!response.ok) {
+      throw new Error(`Error fetching rates: ${response.status} ${response.statusText}`);
     }
 
-    const paraleloData = await paraleloRes.json();
+    const data = await response.json();
     
-    // 2. Obtener tasa oficial BCV
-    const oficialRes = await fetch('https://pydolarve.org/api/v1/dollar?page=bcv', {
-      cache: 'no-store',
-      headers: {
-        'User-Agent': 'Mozilla/5.0'
-      }
-    });
+    // Extraer tasas (esta API retorna un array)
+    // Buscar el dólar oficial (BCV) y paralelo
+    const oficialData = data.find((item: any) => 
+      item.fuente?.toLowerCase().includes('bcv') || 
+      item.nombre?.toLowerCase().includes('oficial')
+    );
+    
+    const paraleloData = data.find((item: any) => 
+      item.fuente?.toLowerCase().includes('paralelo') ||
+      item.nombre?.toLowerCase().includes('paralelo')
+    );
 
-    if (!oficialRes.ok) {
-      throw new Error(`Error fetching oficial: ${oficialRes.status}`);
-    }
-
-    const oficialData = await oficialRes.json();
-
-    // Extraer precios
-    const currentParalelo = parseFloat(paraleloData.monitors.enparalelovzla.price);
-    const currentOficial = parseFloat(oficialData.monitors.usd.price);
+    // Si no encuentra, usar el primero como oficial y segundo como paralelo
+    const currentOficial = oficialData?.promedio || data[0]?.promedio || 244.65;
+    const currentParalelo = paraleloData?.promedio || data[1]?.promedio || 368.81;
 
     console.log(`📊 Tasas actuales - Paralelo: ${currentParalelo}, Oficial: ${currentOficial}`);
+    console.log(`📊 Fuentes - Oficial: ${oficialData?.fuente || 'default'}, Paralelo: ${paraleloData?.fuente || 'default'}`);
 
-    // 3. Si es la primera vez, solo guardar
+    // Si es la primera vez, solo guardar
     if (lastRates.paralelo === null) {
       lastRates = {
         paralelo: currentParalelo,
@@ -66,29 +66,31 @@ export async function GET(request: Request) {
           paralelo: currentParalelo,
           oficial: currentOficial
         },
+        sources: {
+          oficial: oficialData?.fuente || 'default',
+          paralelo: paraleloData?.fuente || 'default'
+        },
         timestamp: new Date().toISOString()
       });
     }
 
-    // 4. Calcular cambio porcentual
+    // Calcular cambio porcentual
     const percentageChange = Math.abs(
       ((currentParalelo - lastRates.paralelo) / lastRates.paralelo) * 100
     );
 
     console.log(`📈 Cambio detectado: ${percentageChange.toFixed(2)}%`);
 
-    // 5. Si el cambio es significativo, notificar
-    const threshold = 0.1; // 0.1% para testing (luego cambiar a 1%)
+    // Si el cambio es significativo, notificar
+    const threshold = 0.1; // 0.1% para testing (cambiar a 1% en producción)
     
     if (percentageChange >= threshold) {
       console.log(`🚨 ¡Cambio significativo (${percentageChange.toFixed(2)}%)! Enviando notificaciones...`);
 
-      // Obtener tu Chat ID desde .env
       const chatId = process.env.TELEGRAM_CHAT_ID;
 
       if (chatId) {
         try {
-          // Construir URL base
           const url = new URL(request.url);
           const baseUrl = `${url.protocol}//${url.host}`;
           const apiUrl = `${baseUrl}/api/send-telegram`;
@@ -118,7 +120,7 @@ export async function GET(request: Request) {
           console.error('❌ Error en notificación:', notifError);
         }
       } else {
-        console.log('⚠️ No hay TELEGRAM_CHAT_ID configurado');
+        console.log('⚠️ No hay TELEGRAM_CHAT_ID configurado en .env');
       }
 
       // Actualizar últimas tasas conocidas
@@ -141,6 +143,10 @@ export async function GET(request: Request) {
       percentageChange: percentageChange.toFixed(2),
       threshold: threshold,
       notificationSent: percentageChange >= threshold,
+      sources: {
+        oficial: oficialData?.fuente || 'default',
+        paralelo: paraleloData?.fuente || 'default'
+      },
       timestamp: new Date().toISOString()
     });
 
@@ -149,6 +155,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ 
       error: 'Error al verificar tasas',
       details: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
       timestamp: new Date().toISOString()
     }, { status: 500 });
   }
