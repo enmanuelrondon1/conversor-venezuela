@@ -1,24 +1,26 @@
 // app/api/check-rates/route.ts
+// 🔥 VERSIÓN CORREGIDA - USA VERCEL KV PARA PERSISTENCIA
 import { NextResponse } from 'next/server';
+import { kv } from '@vercel/kv';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+export const maxDuration = 60; // Permite hasta 60 segundos de ejecución
 
-// Store para mantener el estado
-let lastRates = {
-  paralelo: null as number | null,
-  oficial: null as number | null,
-  lastCheck: null as string | null
-};
+const LAST_RATES_KEY = 'rates:last_check';
+const SUBSCRIBERS_KEY = 'telegram:subscribers';
 
-// Importar los suscriptores desde el endpoint de suscripción
-// (necesitamos hacer esto más elegante con una DB, pero por ahora funciona)
+interface LastRates {
+  paralelo: number;
+  oficial: number;
+  lastCheck: string;
+}
 
 export async function GET(request: Request) {
   try {
-    console.log('🔍 Verificando cambios en tasas...');
+    console.log('🔍 [' + new Date().toISOString() + '] Verificando cambios en tasas...');
 
-    // Obtener tasas actuales
+    // Obtener tasas actuales desde la API
     const response = await fetch('https://ve.dolarapi.com/v1/dolares', {
       cache: 'no-store',
       headers: {
@@ -43,22 +45,28 @@ export async function GET(request: Request) {
       item.nombre?.toLowerCase().includes('paralelo')
     );
 
-    const currentOficial = oficialData?.promedio || data[0]?.promedio || 244.65;
-    const currentParalelo = paraleloData?.promedio || data[1]?.promedio || 368.81;
+    const currentOficial = oficialData?.promedio || data[0]?.promedio || 0;
+    const currentParalelo = paraleloData?.promedio || data[1]?.promedio || 0;
 
     console.log(`📊 Tasas actuales - Paralelo: ${currentParalelo}, Oficial: ${currentOficial}`);
 
-    // Primera ejecución
-    if (lastRates.paralelo === null) {
-      lastRates = {
+    // Obtener las últimas tasas conocidas desde KV
+    const lastRates: LastRates | null = await kv.get(LAST_RATES_KEY);
+
+    // Primera ejecución o no hay datos previos
+    if (!lastRates || !lastRates.paralelo) {
+      const newRates: LastRates = {
         paralelo: currentParalelo,
         oficial: currentOficial,
         lastCheck: new Date().toISOString()
       };
       
-      console.log('✅ Primera ejecución, tasas guardadas');
+      await kv.set(LAST_RATES_KEY, newRates);
+      
+      console.log('✅ Primera ejecución - tasas guardadas en KV');
       
       return NextResponse.json({ 
+        success: true,
         message: 'Primera ejecución - tasas guardadas',
         currentRates: {
           paralelo: currentParalelo,
@@ -69,41 +77,57 @@ export async function GET(request: Request) {
     }
 
     // Calcular cambio porcentual
-    const percentageChange = Math.abs(
-      ((currentParalelo - lastRates.paralelo) / lastRates.paralelo) * 100
-    );
+    const percentageChange = ((currentParalelo - lastRates.paralelo) / lastRates.paralelo) * 100;
+    const absoluteChange = Math.abs(percentageChange);
 
-    console.log(`📈 Cambio detectado: ${percentageChange.toFixed(2)}%`);
+    console.log(`📈 Cambio detectado: ${percentageChange.toFixed(2)}% (${absoluteChange.toFixed(2)}% absoluto)`);
 
-    // Si el cambio es significativo, notificar a TODOS los suscritos
     const threshold = 1; // 1% para producción
     
-    if (percentageChange >= threshold) {
-      console.log(`🚨 ¡Cambio significativo (${percentageChange.toFixed(2)}%)! Enviando notificaciones...`);
+    // Si el cambio es significativo, notificar
+    if (absoluteChange >= threshold) {
+      console.log(`🚨 ¡Cambio significativo (${absoluteChange.toFixed(2)}%)! Enviando notificaciones...`);
 
       try {
-        // Obtener lista de suscriptores
-        const url = new URL(request.url);
-        const baseUrl = `${url.protocol}//${url.host}`;
+        // Obtener suscriptores desde KV
+        const subscribers: any[] = await kv.get(SUBSCRIBERS_KEY) || [];
         
-        const subscribersResponse = await fetch(`${baseUrl}/api/subscribe-telegram`, {
-          method: 'GET',
-          headers: { 'Content-Type': 'application/json' }
-        });
+        console.log(`📢 Total de suscriptores: ${subscribers.length}`);
 
-        const subscribersData = await subscribersResponse.json();
-        const subscribers = subscribersData.subscribers || [];
-
-        console.log(`📢 Enviando notificaciones a ${subscribers.length} suscriptores...`);
+        if (subscribers.length === 0) {
+          console.log('⚠️ No hay suscriptores registrados');
+          
+          // Actualizar tasas aunque no haya suscriptores
+          await kv.set(LAST_RATES_KEY, {
+            paralelo: currentParalelo,
+            oficial: currentOficial,
+            lastCheck: new Date().toISOString()
+          });
+          
+          return NextResponse.json({ 
+            success: true,
+            message: 'Cambio detectado pero no hay suscriptores',
+            currentRates: { paralelo: currentParalelo, oficial: currentOficial },
+            percentageChange: percentageChange.toFixed(2),
+            timestamp: new Date().toISOString()
+          });
+        }
 
         let successCount = 0;
         let failCount = 0;
+        const results: any[] = [];
+
+        // Obtener base URL
+        const url = new URL(request.url);
+        const baseUrl = `${url.protocol}//${url.host}`;
 
         // Enviar notificación a cada suscriptor
         for (const subscriber of subscribers) {
           try {
             // Verificar si el cambio supera el umbral del usuario
-            if (percentageChange >= subscriber.threshold) {
+            if (absoluteChange >= (subscriber.threshold || 1)) {
+              console.log(`📤 Enviando a ${subscriber.username || subscriber.chatId} (umbral: ${subscriber.threshold}%)`);
+              
               const notificationResponse = await fetch(`${baseUrl}/api/send-telegram`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -120,56 +144,92 @@ export async function GET(request: Request) {
               
               if (notificationData.success) {
                 successCount++;
-                console.log(`✅ Notificación enviada a ${subscriber.chatId}`);
+                results.push({
+                  chatId: subscriber.chatId,
+                  status: 'success',
+                  messageId: notificationData.messageId
+                });
+                console.log(`✅ Enviado a ${subscriber.username || subscriber.chatId}`);
               } else {
                 failCount++;
+                results.push({
+                  chatId: subscriber.chatId,
+                  status: 'failed',
+                  error: notificationData.error
+                });
                 console.error(`❌ Error enviando a ${subscriber.chatId}:`, notificationData.error);
               }
             } else {
-              console.log(`⏭️ Suscriptor ${subscriber.chatId} tiene umbral ${subscriber.threshold}% > cambio ${percentageChange.toFixed(2)}%`);
+              console.log(`⏭️ Suscriptor ${subscriber.chatId} tiene umbral ${subscriber.threshold}% > cambio ${absoluteChange.toFixed(2)}%`);
             }
 
-            // Pequeña pausa entre notificaciones para no saturar Telegram
+            // Pequeña pausa entre notificaciones
             await new Promise(resolve => setTimeout(resolve, 100));
             
           } catch (notifError) {
             failCount++;
+            results.push({
+              chatId: subscriber.chatId,
+              status: 'error',
+              error: notifError instanceof Error ? notifError.message : 'Unknown error'
+            });
             console.error(`❌ Error en notificación para ${subscriber.chatId}:`, notifError);
           }
         }
 
         console.log(`📊 Resumen: ${successCount} enviadas, ${failCount} fallidas de ${subscribers.length} total`);
 
-      } catch (subscriberError) {
-        console.error('❌ Error obteniendo suscriptores:', subscriberError);
-      }
+        // Actualizar últimas tasas conocidas en KV
+        await kv.set(LAST_RATES_KEY, {
+          paralelo: currentParalelo,
+          oficial: currentOficial,
+          lastCheck: new Date().toISOString()
+        });
 
-      // Actualizar últimas tasas conocidas
-      lastRates = {
-        paralelo: currentParalelo,
-        oficial: currentOficial,
-        lastCheck: new Date().toISOString()
-      };
+        return NextResponse.json({ 
+          success: true,
+          notificationsSent: successCount,
+          notificationsFailed: failCount,
+          totalSubscribers: subscribers.length,
+          currentRates: {
+            paralelo: currentParalelo,
+            oficial: currentOficial
+          },
+          previousRates: lastRates,
+          percentageChange: percentageChange.toFixed(2),
+          absoluteChange: absoluteChange.toFixed(2),
+          threshold: threshold,
+          results,
+          timestamp: new Date().toISOString()
+        });
+
+      } catch (subscriberError) {
+        console.error('❌ Error obteniendo/notificando suscriptores:', subscriberError);
+        throw subscriberError;
+      }
     } else {
       console.log(`✅ Cambio menor al umbral (${threshold}%). No se envían notificaciones.`);
+      
+      return NextResponse.json({ 
+        success: true,
+        message: 'Cambio no significativo',
+        currentRates: {
+          paralelo: currentParalelo,
+          oficial: currentOficial
+        },
+        lastKnownRates: lastRates,
+        percentageChange: percentageChange.toFixed(2),
+        absoluteChange: absoluteChange.toFixed(2),
+        threshold: threshold,
+        notificationSent: false,
+        timestamp: new Date().toISOString()
+      });
     }
-
-    return NextResponse.json({ 
-      success: true,
-      currentRates: {
-        paralelo: currentParalelo,
-        oficial: currentOficial
-      },
-      lastKnownRates: lastRates,
-      percentageChange: percentageChange.toFixed(2),
-      threshold: threshold,
-      notificationSent: percentageChange >= threshold,
-      timestamp: new Date().toISOString()
-    });
 
   } catch (error) {
     console.error('❌ Error al verificar tasas:', error);
     return NextResponse.json({ 
+      success: false,
       error: 'Error al verificar tasas',
       details: error instanceof Error ? error.message : 'Unknown error',
       timestamp: new Date().toISOString()

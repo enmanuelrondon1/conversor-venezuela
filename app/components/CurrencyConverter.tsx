@@ -2,7 +2,7 @@
 "use client";
 import { useState } from "react";
 import { useCurrencyConverter } from "./converter/useCurrencyConverter";
-// import Header from "./converter/Header";
+import Header from "./converter/Header";
 import RateSelector from "./converter/RateSelector";
 import ConverterCard from "./converter/ConverterCard";
 import ComparisonTable from "./converter/ComparisonTable";
@@ -62,11 +62,11 @@ const CurrencyConverter = () => {
       className={`min-h-screen ${themeClasses} p-4 md:p-8 transition-colors duration-300`}
     >
       <div className="max-w-4xl mx-auto">
-        {/* <Header
+        <Header
           darkMode={darkMode}
           setDarkMode={setDarkMode}
           onOpenTelegram={handleOpenTelegram}
-        /> */}
+        />
 
         <RateSelector
           fromCurrency={fromCurrency}
