@@ -1,38 +1,8 @@
 // app/api/subscribe-telegram/route.ts
 import { NextResponse } from 'next/server';
-import fs from 'fs/promises';
-import path from 'path';
+import { kv } from '@vercel/kv';
 
-// Ruta del archivo de suscriptores
-const SUBSCRIBERS_FILE = path.join(process.cwd(), 'data', 'subscribers.json');
-
-// Función para asegurar que exista el directorio
-async function ensureDataDirectory() {
-  const dataDir = path.join(process.cwd(), 'data');
-  try {
-    await fs.access(dataDir);
-  } catch {
-    await fs.mkdir(dataDir, { recursive: true });
-  }
-}
-
-// Función para leer suscriptores
-async function readSubscribers() {
-  try {
-    await ensureDataDirectory();
-    const data = await fs.readFile(SUBSCRIBERS_FILE, 'utf-8');
-    return JSON.parse(data);
-  } catch (error) {
-    // Si el archivo no existe, retornar array vacío
-    return [];
-  }
-}
-
-// Función para escribir suscriptores
-async function writeSubscribers(subscribers: any[]) {
-  await ensureDataDirectory();
-  await fs.writeFile(SUBSCRIBERS_FILE, JSON.stringify(subscribers, null, 2));
-}
+const SUBSCRIBERS_KEY = 'telegram:subscribers';
 
 export async function POST(request: Request) {
   try {
@@ -45,7 +15,8 @@ export async function POST(request: Request) {
       );
     }
 
-    const subscribers = await readSubscribers();
+    // Obtener suscriptores actuales
+    let subscribers: any[] = await kv.get(SUBSCRIBERS_KEY) || [];
     
     // Verificar si ya existe
     const existingIndex = subscribers.findIndex((s: any) => s.chatId === chatId);
@@ -66,7 +37,8 @@ export async function POST(request: Request) {
       console.log(`✅ Nuevo usuario suscrito: ${username || chatId}`);
     }
 
-    await writeSubscribers(subscribers);
+    // Guardar en KV
+    await kv.set(SUBSCRIBERS_KEY, subscribers);
 
     return NextResponse.json({ 
       success: true, 
@@ -88,11 +60,11 @@ export async function DELETE(request: Request) {
   try {
     const { chatId } = await request.json();
     
-    const subscribers = await readSubscribers();
+    let subscribers: any[] = await kv.get(SUBSCRIBERS_KEY) || [];
     const filtered = subscribers.filter((s: any) => s.chatId !== chatId);
     
     if (filtered.length < subscribers.length) {
-      await writeSubscribers(filtered);
+      await kv.set(SUBSCRIBERS_KEY, filtered);
       console.log(`🔕 Usuario desuscrito: ${chatId}`);
       
       return NextResponse.json({ 
@@ -117,7 +89,7 @@ export async function DELETE(request: Request) {
 
 export async function GET() {
   try {
-    const subscribers = await readSubscribers();
+    const subscribers: any[] = await kv.get(SUBSCRIBERS_KEY) || [];
     
     return NextResponse.json({
       success: true,
