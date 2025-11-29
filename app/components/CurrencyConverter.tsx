@@ -7,11 +7,12 @@ import RateSelector from "./converter/RateSelector";
 import ConverterCard from "./converter/ConverterCard";
 import ComparisonTable from "./converter/ComparisonTable";
 import QuickConversionTable from "./converter/QuickConversionTable";
-import TelegramModal from "./TelegramModal"; // ← AGREGAR ESTO
+import TelegramModal from "./TelegramModal";
+import PWAInstaller from './PWAInstaller';
 
 const CurrencyConverter = () => {
   const [isNotificationModalOpen, setIsNotificationModalOpen] = useState(false);
-  const [isTelegramModalOpen, setIsTelegramModalOpen] = useState(false); // ← AGREGAR ESTO
+  const [isTelegramModalOpen, setIsTelegramModalOpen] = useState(false);
 
   const {
     amount,
@@ -61,7 +62,8 @@ const CurrencyConverter = () => {
           darkMode={darkMode}
           setDarkMode={setDarkMode}
           onOpenNotifications={() => setIsNotificationModalOpen(true)}
-          onOpenTelegram={() => setIsTelegramModalOpen(true)} // ← AGREGAR ESTO
+          onOpenTelegram={() => setIsTelegramModalOpen(true)}
+          vesRates={vesRates} // ← AGREGAR ESTO para el PDF
         />
 
         <RateSelector
@@ -120,12 +122,15 @@ const CurrencyConverter = () => {
         />
       </div>
 
-      {/* Modal de Telegram - ← AGREGAR ESTO */}
+      {/* Modal de Telegram */}
       <TelegramModal
         isOpen={isTelegramModalOpen}
         onClose={() => setIsTelegramModalOpen(false)}
         darkMode={darkMode}
       />
+      
+      {/* Instalador PWA */}
+      <PWAInstaller />
     </div>
   );
 };

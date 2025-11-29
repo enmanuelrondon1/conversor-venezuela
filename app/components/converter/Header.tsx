@@ -1,34 +1,34 @@
 // app/components/converter/Header.tsx
-import { Moon, Sun, Bell, BellOff, Send } from 'lucide-react'; // ← Agregar Send
+import { Moon, Sun, Bell, BellOff, Send } from 'lucide-react';
 import { useState, useEffect } from 'react';
+import PDFDownloader from '../PDFDownloader';
+import AppInstaller from '../AppInstaller';
 
 interface HeaderProps {
   darkMode: boolean;
   setDarkMode: (value: boolean) => void;
   onOpenNotifications: () => void;
-  onOpenTelegram: () => void; // ← AGREGAR ESTO
+  onOpenTelegram: () => void;
+  vesRates: any;
 }
 
 const Header = ({ 
   darkMode, 
   setDarkMode, 
   onOpenNotifications,
-  onOpenTelegram // ← AGREGAR ESTO
+  onOpenTelegram,
+  vesRates
 }: HeaderProps) => {
   const [isWhatsAppSubscribed, setIsWhatsAppSubscribed] = useState(false);
-  const [isTelegramSubscribed, setIsTelegramSubscribed] = useState(false); // ← AGREGAR ESTO
+  const [isTelegramSubscribed, setIsTelegramSubscribed] = useState(false);
 
-  // Verificar suscripciones
   useEffect(() => {
-    // WhatsApp
     const whatsappSubscribed = localStorage.getItem('whatsapp_subscribed') === 'true';
     setIsWhatsAppSubscribed(whatsappSubscribed);
 
-    // Telegram - ← AGREGAR ESTO
     const telegramSubscribed = localStorage.getItem('telegram_subscribed') === 'true';
     setIsTelegramSubscribed(telegramSubscribed);
 
-    // Actualizar estado cuando cambie
     const handleStorageChange = () => {
       const whatsappSubscribed = localStorage.getItem('whatsapp_subscribed') === 'true';
       setIsWhatsAppSubscribed(whatsappSubscribed);
@@ -39,12 +39,12 @@ const Header = ({
 
     window.addEventListener('storage', handleStorageChange);
     window.addEventListener('whatsapp-subscription-changed', handleStorageChange);
-    window.addEventListener('telegram-subscription-changed', handleStorageChange); // ← AGREGAR ESTO
+    window.addEventListener('telegram-subscription-changed', handleStorageChange);
     
     return () => {
       window.removeEventListener('storage', handleStorageChange);
       window.removeEventListener('whatsapp-subscription-changed', handleStorageChange);
-      window.removeEventListener('telegram-subscription-changed', handleStorageChange); // ← AGREGAR ESTO
+      window.removeEventListener('telegram-subscription-changed', handleStorageChange);
     };
   }, []);
 
@@ -58,8 +58,14 @@ const Header = ({
           Conversor de Divisas Venezuela
         </h1>
         
-        <div className="flex-1 flex justify-end items-center gap-3">
-          {/* Botón de Notificaciones WhatsApp */}
+        <div className="flex-1 flex justify-end items-center gap-2">
+          {/* Botón Instalar App */}
+          <AppInstaller darkMode={darkMode} />
+          
+          {/* Botón PDF */}
+          <PDFDownloader darkMode={darkMode} vesRates={vesRates} />
+          
+          {/* Botón WhatsApp */}
           <button
             onClick={onOpenNotifications}
             className={`relative p-2.5 rounded-lg transition-all duration-300 ${
@@ -81,7 +87,7 @@ const Header = ({
             )}
           </button>
 
-          {/* Botón de Notificaciones Telegram - ← AGREGAR ESTO */}
+          {/* Botón Telegram */}
           <button
             onClick={onOpenTelegram}
             className={`relative p-2.5 rounded-lg transition-all duration-300 ${
@@ -103,7 +109,7 @@ const Header = ({
             )}
           </button>
 
-          {/* Botón de Tema */}
+          {/* Botón Dark Mode */}
           <button
             onClick={() => setDarkMode(!darkMode)}
             className={`p-2.5 rounded-lg transition-all duration-300 ${
