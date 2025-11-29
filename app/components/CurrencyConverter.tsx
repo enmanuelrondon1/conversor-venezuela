@@ -2,16 +2,15 @@
 "use client";
 import { useState } from "react";
 import { useCurrencyConverter } from "./converter/useCurrencyConverter";
-import Header from "./converter/Header";
+// import Header from "./converter/Header";
 import RateSelector from "./converter/RateSelector";
 import ConverterCard from "./converter/ConverterCard";
 import ComparisonTable from "./converter/ComparisonTable";
 import QuickConversionTable from "./converter/QuickConversionTable";
 import TelegramModal from "./TelegramModal";
-import PWAInstaller from './PWAInstaller';
+import PWAInstaller from "./PWAInstaller";
 
 const CurrencyConverter = () => {
-  const [isNotificationModalOpen, setIsNotificationModalOpen] = useState(false);
   const [isTelegramModalOpen, setIsTelegramModalOpen] = useState(false);
 
   const {
@@ -41,6 +40,11 @@ const CurrencyConverter = () => {
     getRateChange,
   } = useCurrencyConverter();
 
+  // Función para abrir el modal de Telegram
+  const handleOpenTelegram = () => {
+    setIsTelegramModalOpen(true);
+  };
+
   const themeClasses = darkMode
     ? "bg-gray-900 text-white"
     : "bg-gradient-to-br from-blue-50 to-indigo-100 text-gray-900";
@@ -58,13 +62,11 @@ const CurrencyConverter = () => {
       className={`min-h-screen ${themeClasses} p-4 md:p-8 transition-colors duration-300`}
     >
       <div className="max-w-4xl mx-auto">
-        <Header
+        {/* <Header
           darkMode={darkMode}
           setDarkMode={setDarkMode}
-          onOpenNotifications={() => setIsNotificationModalOpen(true)}
-          onOpenTelegram={() => setIsTelegramModalOpen(true)}
-          vesRates={vesRates} // ← AGREGAR ESTO para el PDF
-        />
+          onOpenTelegram={handleOpenTelegram}
+        /> */}
 
         <RateSelector
           fromCurrency={fromCurrency}
@@ -128,7 +130,7 @@ const CurrencyConverter = () => {
         onClose={() => setIsTelegramModalOpen(false)}
         darkMode={darkMode}
       />
-      
+
       {/* Instalador PWA */}
       <PWAInstaller />
     </div>

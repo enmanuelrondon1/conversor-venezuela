@@ -1,7 +1,22 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // Configuración existente...
+  
+  // Agregar esto para desarrollo
+  ...(process.env.NODE_ENV === 'development' && {
+    headers: async () => [
+      {
+        source: '/:path*',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'no-store, must-revalidate',
+          },
+        ],
+      },
+    ],
+  }),
 };
 
 export default nextConfig;

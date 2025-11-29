@@ -1,136 +1,121 @@
-// app/components/converter/Header.tsx
-import { Moon, Sun, Bell, BellOff, Send } from 'lucide-react';
-import { useState, useEffect } from 'react';
-import PDFDownloader from '../PDFDownloader';
-import AppInstaller from '../AppInstaller';
+// // app/components/converter/Header.tsx
+// import { Moon, Sun, Send } from 'lucide-react';
+// import { useState, useEffect } from 'react';
+// import AppInstaller from '../AppInstaller';
 
-interface HeaderProps {
-  darkMode: boolean;
-  setDarkMode: (value: boolean) => void;
-  onOpenNotifications: () => void;
-  onOpenTelegram: () => void;
-  vesRates: any;
-}
+// interface HeaderProps {
+//   darkMode: boolean;
+//   setDarkMode: (value: boolean) => void;
+//   onOpenTelegram: () => void;
+// }
 
-const Header = ({ 
-  darkMode, 
-  setDarkMode, 
-  onOpenNotifications,
-  onOpenTelegram,
-  vesRates
-}: HeaderProps) => {
-  const [isWhatsAppSubscribed, setIsWhatsAppSubscribed] = useState(false);
-  const [isTelegramSubscribed, setIsTelegramSubscribed] = useState(false);
+// const Header = ({ 
+//   darkMode, 
+//   setDarkMode, 
+//   onOpenTelegram
+// }: HeaderProps) => {
+//   const [isTelegramSubscribed, setIsTelegramSubscribed] = useState(false);
 
-  useEffect(() => {
-    const whatsappSubscribed = localStorage.getItem('whatsapp_subscribed') === 'true';
-    setIsWhatsAppSubscribed(whatsappSubscribed);
+//   useEffect(() => {
+//     const telegramSubscribed = localStorage.getItem('telegram_subscribed') === 'true';
+//     setIsTelegramSubscribed(telegramSubscribed);
 
-    const telegramSubscribed = localStorage.getItem('telegram_subscribed') === 'true';
-    setIsTelegramSubscribed(telegramSubscribed);
+//     const handleStorageChange = () => {
+//       const telegramSubscribed = localStorage.getItem('telegram_subscribed') === 'true';
+//       setIsTelegramSubscribed(telegramSubscribed);
+//     };
 
-    const handleStorageChange = () => {
-      const whatsappSubscribed = localStorage.getItem('whatsapp_subscribed') === 'true';
-      setIsWhatsAppSubscribed(whatsappSubscribed);
-      
-      const telegramSubscribed = localStorage.getItem('telegram_subscribed') === 'true';
-      setIsTelegramSubscribed(telegramSubscribed);
-    };
-
-    window.addEventListener('storage', handleStorageChange);
-    window.addEventListener('whatsapp-subscription-changed', handleStorageChange);
-    window.addEventListener('telegram-subscription-changed', handleStorageChange);
+//     window.addEventListener('storage', handleStorageChange);
+//     window.addEventListener('telegram-subscription-changed', handleStorageChange);
     
-    return () => {
-      window.removeEventListener('storage', handleStorageChange);
-      window.removeEventListener('whatsapp-subscription-changed', handleStorageChange);
-      window.removeEventListener('telegram-subscription-changed', handleStorageChange);
-    };
-  }, []);
+//     return () => {
+//       window.removeEventListener('storage', handleStorageChange);
+//       window.removeEventListener('telegram-subscription-changed', handleStorageChange);
+//     };
+//   }, []);
 
-  return (
-    <div className="text-center mb-8">
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex-1" />
+//   return (
+//     <header className="mb-8">
+//       <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+//         {/* Logo y Título */}
+//         <div className="flex items-center gap-3">
+//           <div className="flex-shrink-0 w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center shadow-lg">
+//             <span className="text-2xl">💱</span>
+//           </div>
+//           <div className="text-left">
+//             <h1 className={`text-2xl sm:text-3xl font-bold ${
+//               darkMode 
+//                 ? 'bg-gradient-to-r from-blue-400 to-blue-300 bg-clip-text text-transparent'
+//                 : 'bg-gradient-to-r from-blue-600 to-blue-500 bg-clip-text text-transparent'
+//             }`}>
+//               Conversor Venezuela
+//             </h1>
+//             <p className={`text-xs sm:text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+//               Tasas en tiempo real
+//             </p>
+//           </div>
+//         </div>
         
-        <h1 className="text-3xl md:text-4xl font-bold flex items-center justify-center gap-2">
-          <span className="text-blue-500">📈</span>
-          Conversor de Divisas Venezuela
-        </h1>
-        
-        <div className="flex-1 flex justify-end items-center gap-2">
-          {/* Botón Instalar App */}
-          <AppInstaller darkMode={darkMode} />
+//         {/* Botones de Acción */}
+//         <div className="flex items-center gap-2">
+//           {/* Botón Instalar App */}
+//           <AppInstaller darkMode={darkMode} />
           
-          {/* Botón PDF */}
-          <PDFDownloader darkMode={darkMode} vesRates={vesRates} />
-          
-          {/* Botón WhatsApp */}
-          <button
-            onClick={onOpenNotifications}
-            className={`relative p-2.5 rounded-lg transition-all duration-300 ${
-              darkMode 
-                ? 'bg-gray-800 hover:bg-gray-700 text-gray-300' 
-                : 'bg-white hover:bg-gray-100 text-gray-700'
-            } border ${
-              darkMode ? 'border-gray-700' : 'border-gray-200'
-            } shadow-sm hover:shadow-md`}
-            title={isWhatsAppSubscribed ? 'Notificaciones WhatsApp activas' : 'Configurar WhatsApp'}
-          >
-            {isWhatsAppSubscribed ? (
-              <>
-                <Bell size={20} className="text-green-500" />
-                <span className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full animate-pulse" />
-              </>
-            ) : (
-              <BellOff size={20} />
-            )}
-          </button>
+//           {/* Botón Telegram */}
+//           <button
+//             onClick={onOpenTelegram}
+//             className={`group relative flex items-center gap-2 px-3 sm:px-4 py-2.5 rounded-xl transition-all duration-300 ${
+//               isTelegramSubscribed
+//                 ? darkMode
+//                   ? 'bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 border-2 border-blue-500/50'
+//                   : 'bg-blue-50 hover:bg-blue-100 text-blue-600 border-2 border-blue-200'
+//                 : darkMode 
+//                   ? 'bg-gray-800 hover:bg-gray-700 text-gray-300 border-2 border-gray-700' 
+//                   : 'bg-white hover:bg-gray-50 text-gray-700 border-2 border-gray-200'
+//             } shadow-sm hover:shadow-md font-medium`}
+//             title={isTelegramSubscribed ? 'Notificaciones activas' : 'Activar notificaciones'}
+//           >
+//             <Send size={18} className={isTelegramSubscribed ? '' : 'opacity-60'} />
+//             <span className="hidden sm:inline text-sm">
+//               {isTelegramSubscribed ? 'Alertas' : 'Telegram'}
+//             </span>
+//             {isTelegramSubscribed && (
+//               <span className="absolute -top-1 -right-1 w-3 h-3 bg-blue-500 rounded-full animate-pulse ring-2 ring-white dark:ring-gray-900" />
+//             )}
+//           </button>
 
-          {/* Botón Telegram */}
-          <button
-            onClick={onOpenTelegram}
-            className={`relative p-2.5 rounded-lg transition-all duration-300 ${
-              darkMode 
-                ? 'bg-gray-800 hover:bg-gray-700 text-gray-300' 
-                : 'bg-white hover:bg-gray-100 text-gray-700'
-            } border ${
-              darkMode ? 'border-gray-700' : 'border-gray-200'
-            } shadow-sm hover:shadow-md`}
-            title={isTelegramSubscribed ? 'Notificaciones Telegram activas' : 'Configurar Telegram'}
-          >
-            {isTelegramSubscribed ? (
-              <>
-                <Send size={20} className="text-blue-500" />
-                <span className="absolute -top-1 -right-1 w-3 h-3 bg-blue-500 rounded-full animate-pulse" />
-              </>
-            ) : (
-              <Send size={20} className="opacity-50" />
-            )}
-          </button>
+//           {/* Botón Dark Mode */}
+//           <button
+//             onClick={() => setDarkMode(!darkMode)}
+//             className={`p-2.5 rounded-xl transition-all duration-300 ${
+//               darkMode 
+//                 ? 'bg-gray-800 hover:bg-gray-700 text-yellow-400 border-2 border-gray-700' 
+//                 : 'bg-white hover:bg-gray-50 text-gray-700 border-2 border-gray-200'
+//             } shadow-sm hover:shadow-md`}
+//             title={darkMode ? 'Modo claro' : 'Modo oscuro'}
+//           >
+//             {darkMode ? <Sun size={20} /> : <Moon size={20} />}
+//           </button>
+//         </div>
+//       </div>
 
-          {/* Botón Dark Mode */}
-          <button
-            onClick={() => setDarkMode(!darkMode)}
-            className={`p-2.5 rounded-lg transition-all duration-300 ${
-              darkMode 
-                ? 'bg-gray-800 hover:bg-gray-700 text-yellow-400' 
-                : 'bg-white hover:bg-gray-100 text-gray-700'
-            } border ${
-              darkMode ? 'border-gray-700' : 'border-gray-200'
-            } shadow-sm hover:shadow-md`}
-            title={darkMode ? 'Modo claro' : 'Modo oscuro'}
-          >
-            {darkMode ? <Sun size={20} /> : <Moon size={20} />}
-          </button>
-        </div>
-      </div>
-      
-      <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-        Tasas en tiempo real - Paralelo y Oficial
-      </p>
-    </div>
-  );
-};
+//       {/* Indicador de suscripción */}
+//       {isTelegramSubscribed && (
+//         <div className={`mt-4 p-3 rounded-lg ${
+//           darkMode 
+//             ? 'bg-blue-500/10 border border-blue-500/30' 
+//             : 'bg-blue-50 border border-blue-200'
+//         }`}>
+//           <p className={`text-sm flex items-center gap-2 ${
+//             darkMode ? 'text-blue-400' : 'text-blue-700'
+//           }`}>
+//             <span className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
+//             Recibirás notificaciones cuando el dólar cambie más del 1%
+//           </p>
+//         </div>
+//       )}
+//     </header>
+//   );
+// };
 
-export default Header;
+// export default Header;
