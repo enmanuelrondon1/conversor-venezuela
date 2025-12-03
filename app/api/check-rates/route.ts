@@ -1,5 +1,4 @@
 // app/api/check-rates/route.ts
-// 🔥 VERSIÓN CORREGIDA - USA VERCEL KV PARA PERSISTENCIA
 import { NextResponse } from 'next/server';
 import { kv } from '@vercel/kv';
 

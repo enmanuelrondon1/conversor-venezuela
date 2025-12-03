@@ -1,9 +1,6 @@
-import type { NextConfig } from "next";
-
-const nextConfig: NextConfig = {
-  // Configuración existente...
-  
-  // Agregar esto para desarrollo
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  // Deshabilitar caché en desarrollo
   ...(process.env.NODE_ENV === 'development' && {
     headers: async () => [
       {
@@ -17,6 +14,6 @@ const nextConfig: NextConfig = {
       },
     ],
   }),
-};
+}
 
-export default nextConfig;
+export default nextConfig
