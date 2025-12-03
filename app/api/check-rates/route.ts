@@ -4,7 +4,7 @@ import { kv } from '@vercel/kv';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
-export const maxDuration = 60; // Permite hasta 60 segundos de ejecución
+export const maxDuration = 60;
 
 const LAST_RATES_KEY = 'rates:last_check';
 const SUBSCRIBERS_KEY = 'telegram:subscribers';
@@ -50,19 +50,29 @@ export async function GET(request: Request) {
     console.log(`📊 Tasas actuales - Paralelo: ${currentParalelo}, Oficial: ${currentOficial}`);
 
     // Obtener las últimas tasas conocidas desde KV
-    const lastRates: LastRates | null = await kv.get(LAST_RATES_KEY);
+    let lastRates: LastRates | null = null;
+    
+    try {
+      lastRates = await kv.get(LAST_RATES_KEY);
+      console.log('📦 Tasas desde KV:', lastRates);
+    } catch (kvError) {
+      console.error('⚠️ Error leyendo KV:', kvError);
+    }
 
     // Primera ejecución o no hay datos previos
-    if (!lastRates || !lastRates.paralelo) {
+    if (!lastRates || typeof lastRates.paralelo !== 'number') {
       const newRates: LastRates = {
         paralelo: currentParalelo,
         oficial: currentOficial,
         lastCheck: new Date().toISOString()
       };
       
-      await kv.set(LAST_RATES_KEY, newRates);
-      
-      console.log('✅ Primera ejecución - tasas guardadas en KV');
+      try {
+        await kv.set(LAST_RATES_KEY, newRates);
+        console.log('✅ Primera ejecución - tasas guardadas en KV:', newRates);
+      } catch (kvError) {
+        console.error('❌ Error guardando en KV:', kvError);
+      }
       
       return NextResponse.json({ 
         success: true,
@@ -80,6 +90,7 @@ export async function GET(request: Request) {
     const absoluteChange = Math.abs(percentageChange);
 
     console.log(`📈 Cambio detectado: ${percentageChange.toFixed(2)}% (${absoluteChange.toFixed(2)}% absoluto)`);
+    console.log(`   Anterior: ${lastRates.paralelo} → Actual: ${currentParalelo}`);
 
     const threshold = 1; // 1% para producción
     
@@ -107,7 +118,9 @@ export async function GET(request: Request) {
             success: true,
             message: 'Cambio detectado pero no hay suscriptores',
             currentRates: { paralelo: currentParalelo, oficial: currentOficial },
+            previousRates: lastRates,
             percentageChange: percentageChange.toFixed(2),
+            absoluteChange: absoluteChange.toFixed(2),
             timestamp: new Date().toISOString()
           });
         }
@@ -232,6 +245,26 @@ export async function GET(request: Request) {
       error: 'Error al verificar tasas',
       details: error instanceof Error ? error.message : 'Unknown error',
       timestamp: new Date().toISOString()
+    }, { status: 500 });
+  }
+}
+
+// Endpoint adicional para forzar reset de tasas (útil para debugging)
+export async function DELETE() {
+  try {
+    await kv.del(LAST_RATES_KEY);
+    console.log('🗑️ Tasas reseteadas desde KV');
+    
+    return NextResponse.json({
+      success: true,
+      message: 'Tasas reseteadas. La próxima ejecución será considerada como primera vez.',
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('❌ Error al resetear:', error);
+    return NextResponse.json({
+      success: false,
+      error: 'Error al resetear tasas'
     }, { status: 500 });
   }
 }
