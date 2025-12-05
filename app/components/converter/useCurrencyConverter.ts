@@ -1,4 +1,4 @@
-//src/app/components/converter/useCurrencyConverter.ts
+//app/components/converter/useCurrencyConverter.ts
 "use client";
 import { useState, useEffect } from 'react';
 
@@ -54,38 +54,60 @@ export const useCurrencyConverter = () => {
         setPreviousVesRates({ ...vesRates });
       }
 
+      // Obtener tasas de otras monedas desde Yadio (sigue igual para otras monedas)
       const yadioResponse = await fetch('https://api.yadio.io/exrates/USD');
       const yadioData = await yadioResponse.json();
       
       if (yadioData && yadioData.USD) {
         const baseRates = yadioData.USD;
         setRates(baseRates);
+      }
+
+      // Obtener tasas VES desde DolarAPI (oficial + paralelo)
+      try {
+        const dolarApiResponse = await fetch('https://ve.dolarapi.com/v1/dolares', {
+          cache: 'no-store'
+        });
         
-        if (baseRates.VES) {
-          const newParalelo = baseRates.VES;
-          setVesRates(prev => ({ ...prev, paralelo: newParalelo }));
+        if (dolarApiResponse.ok) {
+          const dolarApiData = await dolarApiResponse.json();
           
+          // Buscar tasa oficial
+          const oficialData = dolarApiData.find((item: any) => 
+            item.fuente?.toLowerCase() === 'oficial' || 
+            item.nombre?.toLowerCase().includes('oficial')
+          );
+          
+          // Buscar tasa paralelo
+          const paraleloData = dolarApiData.find((item: any) => 
+            item.fuente?.toLowerCase() === 'paralelo' ||
+            item.nombre?.toLowerCase().includes('paralelo')
+          );
+
+          const newOficial = oficialData?.promedio || 50.50;
+          const newParalelo = paraleloData?.promedio || 76.94;
+
+          setVesRates({
+            oficial: newOficial,
+            paralelo: newParalelo
+          });
+
           const newEntry: HistoryEntry = {
             timestamp: new Date().toLocaleString('es-VE', { hour: '2-digit', minute: '2-digit' }),
             paralelo: newParalelo,
-            oficial: vesRates.oficial || 50.50
+            oficial: newOficial
           };
           
           setHistory(prev => [...prev.slice(-9), newEntry]);
-        }
-      }
 
-      try {
-        const bcvResponse = await fetch('https://api.exchangerate-api.com/v4/latest/USD');
-        const bcvData = await bcvResponse.json();
-        
-        if (bcvData && bcvData.rates && bcvData.rates.VES) {
-          setVesRates(prev => ({ ...prev, oficial: bcvData.rates.VES }));
+          console.log('✅ Tasas actualizadas desde DolarAPI:', { oficial: newOficial, paralelo: newParalelo });
         } else {
-          setVesRates(prev => ({ ...prev, oficial: 50.50 }));
+          throw new Error('Error al obtener tasas de DolarAPI');
         }
-      } catch {
-        setVesRates(prev => ({ ...prev, oficial: 50.50 }));
+      } catch (dolarApiError) {
+        console.error('Error obteniendo tasas VES:', dolarApiError);
+        // Usar valores de respaldo
+        setVesRates({ paralelo: 76.94, oficial: 50.50 });
       }
 
       setLastUpdate(new Date().toLocaleString('es-VE', { dateStyle: 'short', timeStyle: 'short' }));
@@ -104,7 +126,7 @@ export const useCurrencyConverter = () => {
 
   useEffect(() => {
     fetchRates();
-    const interval = setInterval(fetchRates, 300000);
+    const interval = setInterval(fetchRates, 300000); // Cada 5 minutos
     return () => clearInterval(interval);
   }, []);
 

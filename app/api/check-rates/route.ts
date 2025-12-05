@@ -19,53 +19,39 @@ export async function GET(request: Request) {
   try {
     console.log('🔍 [' + new Date().toISOString() + '] Verificando cambios en tasas...');
 
-    // Obtener tasa paralelo desde Yadio (misma API que el frontend)
-    let currentParalelo = 0;
-    try {
-      const yadioResponse = await fetch('https://api.yadio.io/exrates/USD', {
-        cache: 'no-store',
-        headers: {
-          'Accept': 'application/json',
-          'User-Agent': 'Mozilla/5.0'
-        }
-      });
-
-      if (yadioResponse.ok) {
-        const yadioData = await yadioResponse.json();
-        if (yadioData && yadioData.USD && yadioData.USD.VES) {
-          currentParalelo = yadioData.USD.VES;
-          console.log('✅ Paralelo desde Yadio:', currentParalelo);
-        }
+    // Obtener tasas desde DolarAPI (ve.dolarapi.com)
+    const response = await fetch('https://ve.dolarapi.com/v1/dolares', {
+      cache: 'no-store',
+      headers: {
+        'Accept': 'application/json',
+        'User-Agent': 'Mozilla/5.0'
       }
-    } catch (yadioError) {
-      console.error('⚠️ Error obteniendo desde Yadio:', yadioError);
+    });
+
+    if (!response.ok) {
+      throw new Error(`Error fetching rates: ${response.status}`);
     }
 
-    // Obtener tasa oficial desde ExchangeRate-API (misma API que el frontend)
-    let currentOficial = 0;
-    try {
-      const bcvResponse = await fetch('https://api.exchangerate-api.com/v4/latest/USD', {
-        cache: 'no-store',
-        headers: {
-          'Accept': 'application/json',
-          'User-Agent': 'Mozilla/5.0'
-        }
-      });
+    const data = await response.json();
+    
+    // Buscar tasa oficial
+    const oficialData = data.find((item: any) => 
+      item.fuente?.toLowerCase() === 'oficial' || 
+      item.nombre?.toLowerCase().includes('oficial')
+    );
+    
+    // Buscar tasa paralelo
+    const paraleloData = data.find((item: any) => 
+      item.fuente?.toLowerCase() === 'paralelo' ||
+      item.nombre?.toLowerCase().includes('paralelo')
+    );
 
-      if (bcvResponse.ok) {
-        const bcvData = await bcvResponse.json();
-        if (bcvData && bcvData.rates && bcvData.rates.VES) {
-          currentOficial = bcvData.rates.VES;
-          console.log('✅ Oficial desde ExchangeRate-API:', currentOficial);
-        }
-      }
-    } catch (bcvError) {
-      console.error('⚠️ Error obteniendo desde ExchangeRate-API:', bcvError);
-    }
+    const currentOficial = oficialData?.promedio || 0;
+    const currentParalelo = paraleloData?.promedio || 0;
 
     // Validar que obtuvimos las tasas
     if (currentParalelo === 0 || currentOficial === 0) {
-      throw new Error('No se pudieron obtener las tasas de las APIs');
+      throw new Error('No se pudieron obtener las tasas de DolarAPI');
     }
 
     console.log(`📊 Tasas actuales - Paralelo: ${currentParalelo}, Oficial: ${currentOficial}`);
